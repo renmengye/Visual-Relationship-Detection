@@ -133,8 +133,6 @@ end
 for ii = 1 : length(rlp_confs_ours)
     [Confs, ind] = sort(rlp_confs_ours{ii}, 'descend');
     rlp_confs_ours{ii} = Confs;
-    %size(rlp_confs_ours{ii})
-    %size(rlp_labels_ours{ii})
     rlp_labels_ours{ii} = rlp_labels_ours{ii}(ind, :);
     sub_bboxes_ours{ii} = sub_bboxes_ours{ii}(ind, :);
     obj_bboxes_ours{ii} = obj_bboxes_ours{ii}(ind, :);
@@ -148,16 +146,14 @@ for ii = 1 : length(rlp_confs_ours_dupe)
     sub_bboxes_ours_dupe{ii} = sub_bboxes_ours_dupe{ii}(ind, :);
     obj_bboxes_ours_dupe{ii} = obj_bboxes_ours_dupe{ii}(ind, :);
 end
-% save('results/predicate_det_result.mat', 'rlp_labels_ours', ...
-%     'rlp_confs_ours', 'sub_bboxes_ours', 'obj_bboxes_ours');
 
 %% computing Predicate Det. accuracy
 fprintf('\n');
 fprintf('#######  Top recall results (single vote) ####### \n');
 recall50R = top_recall_Relationship(50, rlp_confs_ours, rlp_labels_ours, ...
-sub_bboxes_ours, obj_bboxes_ours);
+                                    sub_bboxes_ours, obj_bboxes_ours, 1.0);
 recall100R = top_recall_Relationship(100, rlp_confs_ours, rlp_labels_ours, ...
-sub_bboxes_ours, obj_bboxes_ours);
+                                     sub_bboxes_ours, obj_bboxes_ours, 1.0);
 fprintf('Predicate Det. R@50: %0.2f \n', 100 * recall50R);
 fprintf('Predicate Det. R@100: %0.2f \n', 100 * recall100R);
 

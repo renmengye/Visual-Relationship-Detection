@@ -1,18 +1,14 @@
 % this code is revised based on ILSVRC 2013 (http://www.image-net.org/challenges/LSVRC/2013/)
 
-function  top_recall  = top_recall_Relationship(Nre, tuple_confs_cell, ...
-tuple_labels_cell, sub_bboxes_cell, obj_bboxes_cell)
-% image_id_convert, ...
-% image_id_convert2, image_ids
+function top_recall = top_recall_Relationship(Nre, tuple_confs_cell, ...
+    tuple_labels_cell, sub_bboxes_cell, obj_bboxes_cell, gt_thr)
 
-ID = 655;
+if nargin < 6
+    gt_thr = 0.5;
+end
 
-load('gt.mat','gt_tuple_label','gt_obj_bboxes','gt_sub_bboxes');
- 
-%num_imgs = length(gt_tuple_label);
+load('gt.mat','gt_tuple_label','gt_obj_bboxes','gt_sub_bboxes'); 
 num_imgs = 1000;
-%num_imgs = 2;
-%disp('begin')
 for i = 1 : num_imgs
     [tuple_confs_cell{i}, ind] = sort(tuple_confs_cell{i}, 'descend');
     if length(ind) >= Nre
@@ -26,10 +22,8 @@ for i = 1 : num_imgs
         sub_bboxes_cell{i} = sub_bboxes_cell{i}(ind, :);
     end
 end
-%gt_thr = 0.5;
-gt_thr = 1.0;
-iterc = 0;
 
+% check duplicates.
 for ii = 1 : num_imgs
     lab = gt_tuple_label{ii};
     sbox = gt_sub_bboxes{ii};
@@ -91,10 +85,9 @@ for i = 1 : num_imgs
             if norm(labels(j, :) - gt_tupLabel(k, :), 2) ~= 0
                 continue;
             end
-            if gt_thr < 1
-                if gt_detected(k) > 0
-                    continue;
-                end
+            
+            if gt_detected(k) > 0
+                continue;
             end
             
             bbgtO = gt_objBox(k, :);
