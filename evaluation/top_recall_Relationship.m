@@ -129,7 +129,6 @@ for ii = 1 : num_imgs
     num_pos_tuple = num_pos_tuple + size(gt_tuple_label{ii}, 1);
 end
 
-num_pos_tuple
 recall = (tp / num_pos_tuple);
 top_recall = recall(end);
 
