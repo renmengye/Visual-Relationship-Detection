@@ -18,11 +18,27 @@ load('data/obj2vec.mat');
 % word-to-vector embeding based on https://github.com/danielfrg/word2vec
 % input a word and ouput a vector.
 
+load('data/UnionCNNfeaPredicate.mat')
+% the CNN score on union of the boundingboxes of the two participating objects in that relationship. 
+% we provide our scores (VGG based) here, but you can re-train a new model.
+
+load('data/objectDetRCNN.mat');
+% object detection results. The scores are mapped into [0,1]. 
+% we provide detected object (RCCN with VGG) here, but you can use a better model (e.g. ResNet).
+% three items: 
+% detection_labels{k}: object category index in k^{th} testing image.
+% detection_bboxes{k}: detected object bounding boxes in k^{th} testing image. 
+% detection_confs{k}: confident score vector in k^{th} testing image. 
+
+load('data/Wb.mat');
+% W and b in Eq. (2) in [1]
+
 %% We assume we have ground truth object detection
 % we will change "predicate" in rlp_labels_ours use our prediction
+
 load('evaluation/gt.mat');
 
-ours = load('/u/mren/output_valid_top.mat');
+ours = load('/u/mren/pred.mat');
 %ours = load('/u/mren/output_valid_all.mat');
 load('data/imagePath.mat');
 image_ids = cellstr(ours.image_ids);
@@ -63,14 +79,16 @@ for ii = 1 : length(imagePath)
             break
         end
     end
-    rlp_labels_ours{ii} = [];
-    rlp_confs_ours{ii} = [];
-    rlp_labels_ours_dupe{ii} = [];
-    rlp_confs_ours{ii} = [];
-    sub_bboxes_ours_dupe{ii} = [];
-    obj_bboxes_ours_dupe{ii} = [];
-    sub_bboxes_ours{ii} = [];
-    obj_bboxes_ours{ii} = [];
+    if ~found
+        rlp_labels_ours{ii} = [];
+        rlp_confs_ours{ii} = [];
+        rlp_labels_ours_dupe{ii} = [];
+        rlp_confs_ours{ii} = [];
+        sub_bboxes_ours_dupe{ii} = [];
+        obj_bboxes_ours_dupe{ii} = [];
+        sub_bboxes_ours{ii} = [];
+        obj_bboxes_ours{ii} = [];
+    end
 end
 for ii = 1 : size(image_id_convert, 1)
     ii2 = image_id_convert(ii);
@@ -78,54 +96,30 @@ for ii = 1 : size(image_id_convert, 1)
         fprintf([num2str(ii), 'th image is tested! \n']);
     end
 
-    len2 = size(gt_tuple_label{ii2}, 1);
     len = size(ours.data{ii}.labels, 1);
-    % rlp_confs_ours{ii2} = zeros(len2, 1);
+    rlp_confs_ours{ii2} = zeros(len, 1);
     % [len, 70] => [70, len] => [70 * len]
     rlp_confs_ours_dupe{ii2} = reshape(ours.data{ii}.conf', [70 * len, 1]);
     % [len, 70, 3] => [70, len, 3] => [70 * len, 3]
     rlp_labels_ours_dupe{ii2} = reshape(permute(...
-    ours.data{ii}.labels, [2, 1, 3]), [70 * len, 3]);
+        ours.data{ii}.labels, [2, 1, 3]), [70 * len, 3]);
     % Increment indexing by 1.
     rlp_labels_ours_dupe{ii2} = rlp_labels_ours_dupe{ii2} + 1;
+    sub_bboxes_ours{ii2} = double(ours.data{ii}.subj_bbox);
+    obj_bboxes_ours{ii2} = double(ours.data{ii}.obj_bbox);
     % [len, 70, 4] => [70, len, 4] => [70 * len, 4]
     sub_bboxes_ours_dupe{ii2} = reshape(repmat(reshape(...
-    double(ours.data{ii}.subj_bbox), [1, len, 4]), [70, 1, 1]), [70 * len, 4]);
+        sub_bboxes_ours{ii2}, [1, len, 4]), [70, 1, 1]), [70 * len, 4]);
     obj_bboxes_ours_dupe{ii2} = reshape(repmat(reshape(...
-    double(ours.data{ii}.obj_bbox), [1, len, 4]), [70, 1, 1]), [70 * len, 4]);
+        obj_bboxes_ours{ii2}, [1, len, 4]), [70, 1, 1]), [70 * len, 4]);
     
-    cc = 1;
-    for jj = 1 : len2
-        found = 0;
-        for kk = 1 : len
-            subj1 = double([ours.data{ii}.labels(kk, 1, 1) + 1, ...
-                            ours.data{ii}.subj_bbox(kk, :)]);
-            obj1 = double([ours.data{ii}.labels(kk, 1, 3) + 1, ...
-                           ours.data{ii}.obj_bbox(kk, :)]);
-            subj2 = double([gt_tuple_label{ii2}(jj, 1), ...
-                            gt_sub_bboxes{ii2}(jj, :)]);
-            obj2 = double([gt_tuple_label{ii2}(jj, 3), ...
-                           gt_obj_bboxes{ii2}(jj, :)]);
-            if norm(subj1 - subj2, 2) == 0 && norm(obj1 - obj2, 2) == 0
-                found = 1;
-                break
-            end
-        end
-        if found
-            [m_score, m_pred] = max(ours.data{ii}.conf(kk, :));
-            % Need to increment the ID by 1 because of MATLAB indexing.
-            rlp_labels_ours{ii2}(cc, 1) = ...
-                ours.data{ii}.labels(kk, m_pred, 1) + 1;
-            rlp_labels_ours{ii2}(cc, 2) = m_pred;
-            rlp_labels_ours{ii2}(cc, 3) = ...
-                ours.data{ii}.labels(kk, m_pred, 3) + 1;
-            rlp_confs_ours{ii2}(cc) = m_score;
-            sub_bboxes_ours{ii2}(cc, :) = ours.data{ii}.subj_bbox(kk, :);
-            obj_bboxes_ours{ii2}(cc, :) = ours.data{ii}.obj_bbox(kk, :);
-            cc = cc + 1;
-        else
-            % fprintf('%d %d Not found\n', ii, jj);
-        end
+    for jj = 1 : len
+        [m_score, m_pred] = max(ours.data{ii}.conf(jj, :));
+        % Need to increment the ID by 1 because of MATLAB indexing.
+        rlp_labels_ours{ii2}(jj, 1) = ours.data{ii}.labels(jj, m_pred, 1) + 1;
+        rlp_labels_ours{ii2}(jj, 2) = m_pred;
+        rlp_labels_ours{ii2}(jj, 3) = ours.data{ii}.labels(jj, m_pred, 3) + 1;
+        rlp_confs_ours{ii2}(jj) = m_score;
     end
 end
 
@@ -151,9 +145,9 @@ end
 fprintf('\n');
 fprintf('#######  Top recall results (single vote) ####### \n');
 recall50R = top_recall_Relationship(50, rlp_confs_ours, rlp_labels_ours, ...
-                                    sub_bboxes_ours, obj_bboxes_ours, 1.0);
+    sub_bboxes_ours, obj_bboxes_ours);
 recall100R = top_recall_Relationship(100, rlp_confs_ours, rlp_labels_ours, ...
-                                     sub_bboxes_ours, obj_bboxes_ours, 1.0);
+    sub_bboxes_ours, obj_bboxes_ours);
 fprintf('Predicate Det. R@50: %0.2f \n', 100 * recall50R);
 fprintf('Predicate Det. R@100: %0.2f \n', 100 * recall100R);
 
@@ -161,16 +155,9 @@ fprintf('Predicate Det. R@100: %0.2f \n', 100 * recall100R);
 fprintf('\n');
 fprintf('#######  Top recall results (allow multi-vote) ####### \n');
 recall50R = top_recall_Relationship(50, rlp_confs_ours_dupe, ...
-rlp_labels_ours_dupe, sub_bboxes_ours_dupe, obj_bboxes_ours_dupe);
+    rlp_labels_ours_dupe, sub_bboxes_ours_dupe, obj_bboxes_ours_dupe);
 recall100R = top_recall_Relationship(100, rlp_confs_ours_dupe, ...
-rlp_labels_ours_dupe, sub_bboxes_ours_dupe, obj_bboxes_ours_dupe);
+    rlp_labels_ours_dupe, sub_bboxes_ours_dupe, obj_bboxes_ours_dupe);
 fprintf('Predicate Det. R@50: %0.2f \n', 100 * recall50R);
 fprintf('Predicate Det. R@100: %0.2f \n', 100 * recall100R);
-
-% fprintf('\n');
-% fprintf('#######  Zero-shot results  ####### \n');
-% zeroShot100R = zeroShot_top_recall_Relationship(100, rlp_confs_ours, rlp_labels_ours, sub_bboxes_ours, obj_bboxes_ours);
-% zeroShot50R = zeroShot_top_recall_Relationship(50, rlp_confs_ours, rlp_labels_ours, sub_bboxes_ours, obj_bboxes_ours);
-% fprintf('zero-shot Predicate Det. R@50: %0.2f \n', 100*zeroShot50R);
-% fprintf('zero-shot Predicate Det. R@100: %0.2f \n', 100*zeroShot100R);
 

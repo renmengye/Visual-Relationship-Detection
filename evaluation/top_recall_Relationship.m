@@ -23,36 +23,6 @@ for i = 1 : num_imgs
     end
 end
 
-% check duplicates.
-for ii = 1 : num_imgs
-    lab = gt_tuple_label{ii};
-    sbox = gt_sub_bboxes{ii};
-    obox = gt_obj_bboxes{ii};
-    lab2 = [];
-    for jj = 1 : size(lab, 1)
-        found = 0;
-        sub_sig = [sbox(jj, :), lab(jj, 1)];
-        obj_sig = [obox(jj, :), lab(jj, 3)]; 
-        if norm(sub_sig - obj_sig, 2) == 0
-            found = 1;
-        end
-        for kk = 1 : size(lab2, 1)
-            if norm(sub_sig - [sbox(lab2(kk), :), lab(lab2(kk), 1)], 2) == 0 && ...
-                norm(obj_sig - [obox(lab2(kk), :), lab(lab2(kk), 3)], 2) == 0 && ...
-                lab(jj, 2) == lab(lab2(kk), 2)
-                found = 1;
-                break;
-            end
-        end
-        if found == 0
-            lab2 = [lab2; jj];
-        end
-    end
-    gt_tuple_label{ii} = lab(lab2, :);
-    gt_sub_bboxes{ii} = gt_sub_bboxes{ii}(lab2, :);
-    gt_obj_bboxes{ii} = gt_obj_bboxes{ii}(lab2, :);
-end
-
 tp_cell = cell(1, num_imgs);
 fp_cell = cell(1, num_imgs); 
 
@@ -104,7 +74,7 @@ for i = 1 : num_imgs
             if iwO > 0 && ihO > 0 && iwS > 0 && ihS > 0                  
                 % compute overlap as area of intersection / area of union
                 uaO = (bbO(3) - bbO(1) + 1) * (bbO(4) - bbO(2) + 1) + ...
-                      (bbgtO(3) - bbgtO(1) + 1) * (bbgtO(4) - bbgtO(2)+1) - ...
+                      (bbgtO(3) - bbgtO(1) + 1) * (bbgtO(4) - bbgtO(2) + 1) - ...
                       iwO * ihO;
                 ovO = iwO * ihO / uaO;
                 
@@ -159,6 +129,7 @@ for ii = 1 : num_imgs
     num_pos_tuple = num_pos_tuple + size(gt_tuple_label{ii}, 1);
 end
 
+num_pos_tuple
 recall = (tp / num_pos_tuple);
 top_recall = recall(end);
 
